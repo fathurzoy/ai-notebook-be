@@ -6,6 +6,8 @@ import (
 	"ai-notetaking-be/internal/repository"
 	"ai-notetaking-be/internal/service"
 	"ai-notetaking-be/pkg/database"
+	"context"
+	"fmt"
 	"log"
 	"os"
 
@@ -41,12 +43,21 @@ func main() {
 		watermillLogger,
 	)
 
+	consumerService := service.NewConsumerService(pubSub, "embed-note-content")
+
 	publisherService := service.NewPublisherService("embed-note-content", pubSub)
 	noteService := service.NewNoteService(noteRepository, publisherService, db)
 
 	exampleController := controller.NewExampleController(exampleService)
 	notebookController := controller.NewNotebookController(notebookService)
 	noteController := controller.NewNoteController(noteService)
+
+	err := consumerService.Consume(context.Background())
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Println("Server is running")
 
 	api := app.Group("/api")
 	exampleController.RegisterRoutes(api)
