@@ -6,6 +6,7 @@ import (
 	"ai-notetaking-be/pkg/database"
 	"context"
 	"errors"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -17,6 +18,7 @@ type INoteRepository interface {
 	Create(ctx context.Context, note *entity.Note) error
 	GetById(ctx context.Context, id uuid.UUID) (*entity.Note, error)
 	Update(ctx context.Context, note *entity.Note) error
+	Delete(ctx context.Context, id uuid.UUID) error
 }
 
 type noteRepository struct {
@@ -77,6 +79,21 @@ func (n *noteRepository) Update(ctx context.Context, note *entity.Note) error {
 		ctx,
 		`UPDATE note SET title = $2, content = $3, updated_at = $4, notebook_id = $5 WHERE id = $1`,
 		note.Id, note.Title, note.Content, note.UpdatedAt, note.NotebookId,
+	)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (n *noteRepository) Delete(ctx context.Context, id uuid.UUID) error {
+
+	_, err := n.db.Exec(
+		ctx,
+		`UPDATE note SET is_deleted = $2, deleted_at = $3 WHERE id = $1`,
+		id, true, time.Now(),
 	)
 
 	if err != nil {
