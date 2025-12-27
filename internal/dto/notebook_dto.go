@@ -42,10 +42,9 @@ type GetAllNotebookResponse struct {
 }
 
 type ShowNotebookResponse struct {
-	Id         uuid.UUID  `json:"id"`
-	Title      string     `json:"title"`
-	Content    string     `json:"content"`
-	NotebookId uuid.UUID  `json:"notebook_id"`
-	CreatedAt  time.Time  `json:"created_at"`
-	UpdatedAt  *time.Time `json:"updated_at"`
+	Id        uuid.UUID  `json:"id"`
+	Name      string     `json:"name"`
+	ParentId  *uuid.UUID `json:"parent_id"`
+	CreatedAt time.Time  `json:"created_at"`
+	UpdatedAt time.Time  `json:"updated_at"`
 }

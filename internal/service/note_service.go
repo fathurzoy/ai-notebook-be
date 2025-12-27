@@ -13,7 +13,7 @@ import (
 
 type INoteService interface {
 	Create(ctx context.Context, req *dto.CreateNoteRequest) (*dto.CreateNoteResponse, error)
-	Show(ctx context.Context, id uuid.UUID) (*dto.ShowNotebookResponse, error)
+	Show(ctx context.Context, id uuid.UUID) (*dto.ShowNoteResponse, error)
 	Update(ctx context.Context, req *dto.UpdateNoteRequest) (*dto.UpdateNoteResponse, error)
 	Delete(ctx context.Context, id uuid.UUID) error
 	MoveNote(ctx context.Context, req *dto.MoveNoteRequest) (*dto.MoveNoteResponse, error)
@@ -51,14 +51,14 @@ func (c *noteService) Create(ctx context.Context, req *dto.CreateNoteRequest) (*
 	}, nil
 }
 
-func (c *noteService) Show(ctx context.Context, id uuid.UUID) (*dto.ShowNotebookResponse, error) {
+func (c *noteService) Show(ctx context.Context, id uuid.UUID) (*dto.ShowNoteResponse, error) {
 
 	note, err := c.noteRepository.GetById(ctx, id)
 	if err != nil {
 		return nil, err
 	}
 
-	res := dto.ShowNotebookResponse{
+	res := dto.ShowNoteResponse{
 		Id:        note.Id,
 		Title:     note.Title,
 		Content:   note.Content,
