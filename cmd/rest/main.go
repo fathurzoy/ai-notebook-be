@@ -9,6 +9,8 @@ import (
 	"log"
 	"os"
 
+	"github.com/ThreeDotsLabs/watermill"
+	"github.com/ThreeDotsLabs/watermill/pubsub/gochannel"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/joho/godotenv"
@@ -32,7 +34,15 @@ func main() {
 
 	exampleService := service.NewExampleService(exampleRepository)
 	notebookService := service.NewNotebookService(notebookRepository, noteRepository, db)
-	noteService := service.NewNoteService(noteRepository, db)
+
+	watermillLogger := watermill.NewStdLogger(false, false)
+	pubSub := gochannel.NewGoChannel(
+		gochannel.Config{},
+		watermillLogger,
+	)
+
+	publisherService := service.NewPublisherService("embed-note-content", pubSub)
+	noteService := service.NewNoteService(noteRepository, publisherService, db)
 
 	exampleController := controller.NewExampleController(exampleService)
 	notebookController := controller.NewNotebookController(notebookService)
