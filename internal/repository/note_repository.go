@@ -17,6 +17,7 @@ type INoteRepository interface {
 	UsingTx(ctx context.Context, tx database.DatabaseQueryer) INoteRepository
 	Create(ctx context.Context, note *entity.Note) error
 	GetById(ctx context.Context, id uuid.UUID) (*entity.Note, error)
+	GetByNotebookIds(ctx context.Context, notebookIds []uuid.UUID) ([]*entity.Note, error)
 	Update(ctx context.Context, note *entity.Note) error
 	Delete(ctx context.Context, id uuid.UUID) error
 	DeleteByNotebookId(ctx context.Context, uuid uuid.UUID) error
@@ -117,4 +118,38 @@ func (n *noteRepository) DeleteByNotebookId(ctx context.Context, id uuid.UUID) e
 	}
 
 	return nil
+}
+
+func (n *noteRepository) GetByNotebookIds(ctx context.Context, notebookIds []uuid.UUID) ([]*entity.Note, error) {
+	if len(notebookIds) == 0 {
+		return make([]*entity.Note, 0), nil
+	}
+
+	idStr := make([]string, len(notebookIds))
+	for i, id := range notebookIds {
+		idStr[i] = id.String()
+	}
+
+	rows, err := n.db.Query(
+		ctx,
+		`SELECT id, title, content, notebook_id, created_at, updated_at, deleted_at, is_deleted FROM note WHERE notebook_id = ANY($1) and is_deleted = false`,
+		idStr,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	var notes []*entity.Note
+	for rows.Next() {
+		var note entity.Note
+		err := rows.Scan(
+			&note.Id, &note.Title, &note.Content, &note.NotebookId, &note.CreatedAt, &note.UpdatedAt, &note.DeletedAt, &note.IsDeleted,
+		)
+		if err != nil {
+			return nil, err
+		}
+		notes = append(notes, &note)
+	}
+
+	return notes, nil
 }

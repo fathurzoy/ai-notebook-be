@@ -39,6 +39,8 @@ type GetAllNotebookResponse struct {
 	ParentId  *uuid.UUID `json:"parent_id"`
 	CreatedAt time.Time  `json:"created_at"`
 	UpdatedAt time.Time  `json:"updated_at"`
+
+	Notes []GetAllNotebookResponseNote `json:"notes"`
 }
 
 type ShowNotebookResponse struct {
@@ -47,4 +49,12 @@ type ShowNotebookResponse struct {
 	ParentId  *uuid.UUID `json:"parent_id"`
 	CreatedAt time.Time  `json:"created_at"`
 	UpdatedAt time.Time  `json:"updated_at"`
+}
+
+type GetAllNotebookResponseNote struct {
+	Id        uuid.UUID `json:"id"`
+	Title     string    `json:"title"`
+	Content   string    `json:"content"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
