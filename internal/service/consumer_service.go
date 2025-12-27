@@ -2,9 +2,12 @@ package service
 
 import (
 	"ai-notetaking-be/internal/dto"
+	"ai-notetaking-be/internal/repository"
+	"ai-notetaking-be/pkg/embedding"
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
 
 	"github.com/ThreeDotsLabs/watermill/message"
 	"github.com/ThreeDotsLabs/watermill/pubsub/gochannel"
@@ -16,7 +19,8 @@ type IConsumerService interface {
 }
 
 type consumerService struct {
-	pubSub *gochannel.GoChannel
+	noteRepository repository.INoteRepository
+	pubSub         *gochannel.GoChannel
 
 	topicName string
 }
@@ -51,13 +55,28 @@ func (cs *consumerService) processMessage(ctx context.Context, msg *message.Mess
 		panic(err)
 	}
 
-	fmt.Println(payload.NoteId)
+	note, err := cs.noteRepository.GetById(ctx, payload.NoteId)
+	if err != nil {
+		panic(err)
+	}
+
+	res, err := embedding.GetGemniniEmbedding(
+		os.Getenv("GOOGLE_GEMINI_API_KEY"),
+		note.Content,
+	)
+
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Println(res.Embedding.Values)
 	msg.Ack()
 }
 
-func NewConsumerService(pubSub *gochannel.GoChannel, topicName string) IConsumerService {
+func NewConsumerService(pubSub *gochannel.GoChannel, topicName string, noteRepository repository.INoteRepository) IConsumerService {
 	return &consumerService{
-		pubSub:    pubSub,
-		topicName: topicName,
+		pubSub:         pubSub,
+		topicName:      topicName,
+		noteRepository: noteRepository,
 	}
 }
