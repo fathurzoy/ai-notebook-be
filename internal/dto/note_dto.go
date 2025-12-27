@@ -15,10 +15,9 @@ type CreateNoteResponse struct {
 }
 
 type UpdateNoteRequest struct {
-	Id         uuid.UUID `json:"id"`
-	Title      string    `json:"title" validate:"required"`
-	Content    string    `json:"content" validate:"required"`
-	NotebookId uuid.UUID `json:"notebook_id" validate:"required"`
+	Id      uuid.UUID `json:"id"`
+	Title   string    `json:"title" validate:"required"`
+	Content string    `json:"content" validate:"required"`
 }
 
 type UpdateNoteResponse struct {
