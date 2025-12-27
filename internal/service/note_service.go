@@ -13,6 +13,7 @@ import (
 
 type INoteService interface {
 	Create(ctx context.Context, req *dto.CreateNoteRequest) (*dto.CreateNoteResponse, error)
+	Show(ctx context.Context, id uuid.UUID) (*dto.ShowNotebookResponse, error)
 }
 
 type noteService struct {
@@ -45,4 +46,21 @@ func (c *noteService) Create(ctx context.Context, req *dto.CreateNoteRequest) (*
 	return &dto.CreateNoteResponse{
 		Id: note.Id,
 	}, nil
+}
+
+func (c *noteService) Show(ctx context.Context, id uuid.UUID) (*dto.ShowNotebookResponse, error) {
+
+	note, err := c.noteRepository.GetById(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+
+	res := dto.ShowNotebookResponse{
+		Id:        note.Id,
+		Title:     note.Title,
+		Content:   note.Content,
+		CreatedAt: note.CreatedAt,
+	}
+
+	return &res, nil
 }
