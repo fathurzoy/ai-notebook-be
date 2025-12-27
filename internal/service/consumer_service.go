@@ -2,16 +2,19 @@ package service
 
 import (
 	"ai-notetaking-be/internal/dto"
+	"ai-notetaking-be/internal/entity"
 	"ai-notetaking-be/internal/repository"
 	"ai-notetaking-be/pkg/embedding"
 	"context"
 	"encoding/json"
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/ThreeDotsLabs/watermill/message"
 	"github.com/ThreeDotsLabs/watermill/pubsub/gochannel"
 	"github.com/gofiber/fiber/v2/log"
+	"github.com/google/uuid"
 )
 
 type IConsumerService interface {
@@ -19,8 +22,9 @@ type IConsumerService interface {
 }
 
 type consumerService struct {
-	noteRepository repository.INoteRepository
-	pubSub         *gochannel.GoChannel
+	noteRepository          repository.INoteRepository
+	noteEmbeddingRepository repository.INoteEmbeddingRepository
+	pubSub                  *gochannel.GoChannel
 
 	topicName string
 }
@@ -69,14 +73,28 @@ func (cs *consumerService) processMessage(ctx context.Context, msg *message.Mess
 		panic(err)
 	}
 
+	noteEmbedding := entity.NoteEmbedding{
+		Id:             uuid.New(),
+		NoteId:         payload.NoteId,
+		EmbeddingValue: res.Embedding.Values,
+		Document:       note.Content,
+		CreatedAt:      time.Now(),
+	}
+
+	err = cs.noteEmbeddingRepository.Create(ctx, &noteEmbedding)
+	if err != nil {
+		panic(err)
+	}
+
 	fmt.Println(res.Embedding.Values)
 	msg.Ack()
 }
 
-func NewConsumerService(pubSub *gochannel.GoChannel, topicName string, noteRepository repository.INoteRepository) IConsumerService {
+func NewConsumerService(pubSub *gochannel.GoChannel, topicName string, noteRepository repository.INoteRepository, noteEmbeddingRepository repository.INoteEmbeddingRepository) IConsumerService {
 	return &consumerService{
-		pubSub:         pubSub,
-		topicName:      topicName,
-		noteRepository: noteRepository,
+		pubSub:                  pubSub,
+		topicName:               topicName,
+		noteRepository:          noteRepository,
+		noteEmbeddingRepository: noteEmbeddingRepository,
 	}
 }

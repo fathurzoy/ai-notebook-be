@@ -33,6 +33,7 @@ func main() {
 	exampleRepository := repository.NewExampleRepository(db)
 	notebookRepository := repository.NewNotebookRepository(db)
 	noteRepository := repository.NewNoteRepository(db)
+	embeddingRepository := repository.NewNoteEmbeddingRepository(db)
 
 	exampleService := service.NewExampleService(exampleRepository)
 	notebookService := service.NewNotebookService(notebookRepository, noteRepository, db)
@@ -43,7 +44,7 @@ func main() {
 		watermillLogger,
 	)
 
-	consumerService := service.NewConsumerService(pubSub, os.Getenv("EMBED_NOTE_CONTENT_TOPIC_NAME"), noteRepository)
+	consumerService := service.NewConsumerService(pubSub, os.Getenv("EMBED_NOTE_CONTENT_TOPIC_NAME"), noteRepository, embeddingRepository)
 
 	publisherService := service.NewPublisherService(os.Getenv("EMBED_NOTE_CONTENT_TOPIC_NAME"), pubSub)
 	noteService := service.NewNoteService(noteRepository, publisherService, db)
