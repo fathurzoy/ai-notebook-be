@@ -12,7 +12,7 @@ type Note struct {
 	Content    string
 	NotebookId uuid.UUID
 	CreatedAt  time.Time
-	UpdatedAt  time.Time
+	UpdatedAt  *time.Time
 	DeletedAt  *time.Time
 	IsDeleted  bool
 }

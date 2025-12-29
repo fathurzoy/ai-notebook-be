@@ -44,7 +44,7 @@ func main() {
 		watermillLogger,
 	)
 
-	consumerService := service.NewConsumerService(pubSub, os.Getenv("EMBED_NOTE_CONTENT_TOPIC_NAME"), noteRepository, embeddingRepository)
+	consumerService := service.NewConsumerService(pubSub, os.Getenv("EMBED_NOTE_CONTENT_TOPIC_NAME"), noteRepository, embeddingRepository, notebookRepository)
 
 	publisherService := service.NewPublisherService(os.Getenv("EMBED_NOTE_CONTENT_TOPIC_NAME"), pubSub)
 	noteService := service.NewNoteService(noteRepository, publisherService, db)

@@ -94,7 +94,7 @@ func (c *noteService) Update(ctx context.Context, req *dto.UpdateNoteRequest) (*
 	now := time.Now()
 	note.Title = req.Title
 	note.Content = req.Content
-	note.UpdatedAt = now
+	note.UpdatedAt = &now
 
 	err = c.noteRepository.Update(ctx, note)
 	if err != nil {
@@ -132,7 +132,7 @@ func (c *noteService) MoveNote(ctx context.Context, req *dto.MoveNoteRequest) (*
 
 	now := time.Now()
 	note.NotebookId = req.NotebookId
-	note.UpdatedAt = now
+	note.UpdatedAt = &now
 
 	err = c.noteRepository.Update(ctx, note)
 	if err != nil {

@@ -70,7 +70,7 @@ func (c *notebookService) GetAll(ctx context.Context) ([]*dto.GetAllNotebookResp
 					Title:     notes[i].Title,
 					Content:   notes[i].Content,
 					CreatedAt: notes[i].CreatedAt,
-					UpdatedAt: notes[i].UpdatedAt,
+					UpdatedAt: *notes[i].UpdatedAt,
 				})
 			}
 		}
