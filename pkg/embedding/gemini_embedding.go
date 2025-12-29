@@ -37,6 +37,7 @@ type EmbeddingResponseEmbedding struct {
 func GetGemniniEmbedding(
 	apiKey string,
 	text string,
+	taskType string,
 ) (*EmbeddingResponse, error) {
 
 	geminiReq := EmbeddingRequest{
@@ -48,7 +49,7 @@ func GetGemniniEmbedding(
 				},
 			},
 		},
-		TaskType: "RETRIEVAL_DOCUMENT",
+		TaskType: taskType,
 	}
 
 	geminiReqJson, err := json.Marshal(geminiReq)
