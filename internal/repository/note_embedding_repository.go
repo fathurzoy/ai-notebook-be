@@ -4,7 +4,9 @@ import (
 	"ai-notetaking-be/internal/entity"
 	"ai-notetaking-be/pkg/database"
 	"context"
+	"time"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/pgvector/pgvector-go"
 )
@@ -12,6 +14,7 @@ import (
 type INoteEmbeddingRepository interface {
 	UsingTx(ctx context.Context, tx database.DatabaseQueryer) INoteEmbeddingRepository
 	Create(ctx context.Context, noteEmbedding *entity.NoteEmbedding) error
+	DeleteByNoteId(ctx context.Context, noteId uuid.UUID) error
 }
 
 type noteEmbeddingRepository struct {
@@ -30,6 +33,21 @@ func (n *noteEmbeddingRepository) Create(ctx context.Context, noteEmbedding *ent
 		ctx,
 		`INSERT INTO note_embedding (id, note_id, document, embedding_value, created_at, updated_at, deleted_at, is_deleted) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
 		noteEmbedding.Id, noteEmbedding.NoteId, noteEmbedding.Document, pgvector.NewVector(noteEmbedding.EmbeddingValue), noteEmbedding.CreatedAt, noteEmbedding.UpdatedAt, noteEmbedding.DeletedAt, noteEmbedding.IsDeleted,
+	)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (n *noteEmbeddingRepository) DeleteByNoteId(ctx context.Context, noteId uuid.UUID) error {
+
+	_, err := n.db.Exec(
+		ctx,
+		`UPDATE note_embedding SET is_deleted = $2, deleted_at = $3 WHERE note_id = $1`,
+		noteId, true, time.Now(),
 	)
 
 	if err != nil {
