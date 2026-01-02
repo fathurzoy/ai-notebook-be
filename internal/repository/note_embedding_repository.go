@@ -16,6 +16,7 @@ type INoteEmbeddingRepository interface {
 	Create(ctx context.Context, noteEmbedding *entity.NoteEmbedding) error
 	DeleteByNoteId(ctx context.Context, noteId uuid.UUID) error
 	SemanticSearch(ctx context.Context, embeddingValues []float32) ([]*entity.NoteEmbedding, error)
+	DeleteByNotebookId(ctx context.Context, notebookId uuid.UUID) error
 }
 
 type noteEmbeddingRepository struct {
@@ -81,6 +82,21 @@ func (n *noteEmbeddingRepository) SemanticSearch(ctx context.Context, embeddingV
 	}
 
 	return noteEmbeddings, nil
+}
+
+func (n *noteEmbeddingRepository) DeleteByNotebookId(ctx context.Context, notebookId uuid.UUID) error {
+
+	_, err := n.db.Exec(
+		ctx,
+		`UPDATE note_embedding SET is_deleted = $2, deleted_at = $3 WHERE note_id IN (SELECT id FROM note WHERE notebook_id = $1 AND is_deleted = false)`,
+		notebookId, true, time.Now(),
+	)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func NewNoteEmbeddingRepository(db *pgxpool.Pool) INoteEmbeddingRepository {
