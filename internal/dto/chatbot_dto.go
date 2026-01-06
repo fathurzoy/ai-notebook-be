@@ -1,7 +1,19 @@
 package dto
 
-import "github.com/google/uuid"
+import (
+	"time"
+
+	"github.com/google/uuid"
+)
 
 type CreateSessionResponse struct {
 	Id uuid.UUID `json:"chatbot_id"`
+}
+
+type GetAllSessionsResponse struct {
+	Id        uuid.UUID  `json:"id"`
+	Title     string     `json:"title"`
+	CreatedAt time.Time  `json:"created_at"`
+	UpdatedAt *time.Time `json:"updated_at"`
+	DeletedAt *time.Time `json:"deleted_at"`
 }
