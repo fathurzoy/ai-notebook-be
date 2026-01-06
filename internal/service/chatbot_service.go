@@ -16,6 +16,7 @@ import (
 type IChatbotService interface {
 	CreateSession(ctx context.Context) (*dto.CreateSessionResponse, error)
 	GetAllSessions(ctx context.Context) ([]*dto.GetAllSessionsResponse, error)
+	GetChatHistory(ctx context.Context, chatSessionId uuid.UUID) ([]*dto.GetChatHistoryResponse, error)
 }
 
 type chatbotService struct {
@@ -135,6 +136,31 @@ func (s *chatbotService) GetAllSessions(ctx context.Context) ([]*dto.GetAllSessi
 
 	return response, nil
 
+}
+
+func (s *chatbotService) GetChatHistory(ctx context.Context, chatSessionId uuid.UUID) ([]*dto.GetChatHistoryResponse, error) {
+
+	_, err := s.chatbotSessionRepository.GetById(ctx, chatSessionId)
+	if err != nil {
+		return nil, err
+	}
+
+	chatMessages, err := s.chatbotMessageRepository.GetByChatSessionId(ctx, chatSessionId)
+	if err != nil {
+		return nil, err
+	}
+
+	var response []*dto.GetChatHistoryResponse
+	for _, chatMessage := range chatMessages {
+		response = append(response, &dto.GetChatHistoryResponse{
+			Id:        chatMessage.Id,
+			Chat:      chatMessage.Chat,
+			Role:      chatMessage.Role,
+			CreatedAt: chatMessage.CreatedAt,
+		})
+	}
+
+	return response, nil
 }
 
 func NewChatbotService(db *pgxpool.Pool, chatbotSessionRepository repository.IChatSessionRepository, chatbotMessageRepository repository.IChatMessageRepository, chatbotMessageRawRepository repository.IChatMessageRawRepository) IChatbotService {
