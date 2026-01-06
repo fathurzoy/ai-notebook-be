@@ -34,6 +34,9 @@ func main() {
 	notebookRepository := repository.NewNotebookRepository(db)
 	noteRepository := repository.NewNoteRepository(db)
 	embeddingRepository := repository.NewNoteEmbeddingRepository(db)
+	chatSessionRepository := repository.NewChatSessionRepository(db)
+	chatMessageRepository := repository.NewChatMessageRepository(db)
+	chatMessageRawRepository := repository.NewChatMessageRawRepository(db)
 
 	exampleService := service.NewExampleService(exampleRepository)
 
@@ -48,10 +51,13 @@ func main() {
 	publisherService := service.NewPublisherService(os.Getenv("EMBED_NOTE_CONTENT_TOPIC_NAME"), pubSub)
 	noteService := service.NewNoteService(noteRepository, embeddingRepository, publisherService, db)
 	notebookService := service.NewNotebookService(notebookRepository, noteRepository, embeddingRepository, publisherService, db)
+	chatbotService := service.NewChatbotService(db, chatSessionRepository, chatMessageRepository, chatMessageRawRepository)
 
 	exampleController := controller.NewExampleController(exampleService)
 	notebookController := controller.NewNotebookController(notebookService)
 	noteController := controller.NewNoteController(noteService)
+
+	chatbotController := controller.NewChatbotController(chatbotService)
 
 	err := consumerService.Consume(context.Background())
 	if err != nil {
@@ -64,6 +70,7 @@ func main() {
 	exampleController.RegisterRoutes(api)
 	notebookController.RegisterRoutes(api)
 	noteController.RegisterRoutes(api)
+	chatbotController.RegisterRoutes(api)
 
 	log.Fatal(app.Listen(":3000"))
 }
