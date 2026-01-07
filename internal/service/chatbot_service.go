@@ -5,7 +5,11 @@ import (
 	"ai-notetaking-be/internal/dto"
 	"ai-notetaking-be/internal/entity"
 	"ai-notetaking-be/internal/repository"
+	"ai-notetaking-be/pkg/chatbot"
 	"context"
+	"log"
+	"os"
+	"strings"
 	"time"
 
 	"github.com/google/uuid"
@@ -198,19 +202,43 @@ func (s *chatbotService) SendChat(ctx context.Context, request *dto.SendChatRequ
 		CreatedAt:     now,
 	}
 
+	strBuilder := strings.Builder{}
+	strBuilder.WriteString("User next question: ")
+	strBuilder.WriteString(request.Chat)
+	strBuilder.WriteString("\n\n")
+	strBuilder.WriteString("Your answer ?")
 	// TODO: save user raw chat ke db
 	chatMessageRaw := &entity.ChatMessageRaw{
 		Id:            uuid.New(),
-		Chat:          request.Chat,
+		Chat:          strBuilder.String(),
 		Role:          constant.ChatMessageRoleUser,
 		ChatSessionId: request.ChatSessionId,
 		CreatedAt:     now,
 	}
 
+	existingRawChats = append(existingRawChats, chatMessageRaw)
+
+	geminiReq := make([]*chatbot.ChatHistory, 0)
+
+	for _, existingRawChat := range existingRawChats {
+		geminiReq = append(geminiReq, &chatbot.ChatHistory{
+			Chat: existingRawChat.Chat,
+			Role: existingRawChat.Role,
+		})
+	}
+
+	reply, err := chatbot.GetGeminiResponse(ctx, os.Getenv("GOOGLE_GEMINI_API_KEY"), geminiReq)
+	if err != nil {
+		return nil, err
+	}
+
+	log.Printf("Reply: %v", reply)
+
 	// TODO: save dummy model reply ke db
 	chatMessageModel := &entity.ChatMessage{
-		Id:            uuid.New(),
-		Chat:          "This is automated dummy response",
+		Id: uuid.New(),
+		// Chat:          "This is automated dummy response",
+		Chat:          reply,
 		Role:          constant.ChatMessageRoleModel,
 		ChatSessionId: request.ChatSessionId,
 		CreatedAt:     now.Add(1 * time.Second),
@@ -218,8 +246,9 @@ func (s *chatbotService) SendChat(ctx context.Context, request *dto.SendChatRequ
 
 	// TODO: save dummy model raw reply ke db
 	chatMessageModelRaw := &entity.ChatMessageRaw{
-		Id:            uuid.New(),
-		Chat:          "This is automated dummy response",
+		Id: uuid.New(),
+		// Chat:          "This is automated dummy response",
+		Chat:          reply,
 		Role:          constant.ChatMessageRoleModel,
 		ChatSessionId: request.ChatSessionId,
 		CreatedAt:     now.Add(1 * time.Second),
