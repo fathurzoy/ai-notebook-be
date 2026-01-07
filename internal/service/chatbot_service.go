@@ -6,7 +6,9 @@ import (
 	"ai-notetaking-be/internal/entity"
 	"ai-notetaking-be/internal/repository"
 	"ai-notetaking-be/pkg/chatbot"
+	"ai-notetaking-be/pkg/embedding"
 	"context"
+	"fmt"
 	"log"
 	"os"
 	"strings"
@@ -29,6 +31,7 @@ type chatbotService struct {
 	chatbotSessionRepository    repository.IChatSessionRepository
 	chatbotMessageRepository    repository.IChatMessageRepository
 	chatbotMessageRawRepository repository.IChatMessageRawRepository
+	noteEmbeddingRepository     repository.INoteEmbeddingRepository
 }
 
 func (s *chatbotService) CreateSession(ctx context.Context) (*dto.CreateSessionResponse, error) { // TODO: implement create session// messages to the chatbot.
@@ -179,6 +182,7 @@ func (s *chatbotService) SendChat(ctx context.Context, request *dto.SendChatRequ
 	chatSessionRepository := s.chatbotSessionRepository.UsingTx(ctx, tx)
 	chatMessageRepository := s.chatbotMessageRepository.UsingTx(ctx, tx)
 	chatMessageRawRepository := s.chatbotMessageRawRepository.UsingTx(ctx, tx)
+	noteEmbeddingRepository := s.noteEmbeddingRepository.UsingTx(ctx, tx)
 
 	chatSession, err := chatSessionRepository.GetById(ctx, request.ChatSessionId)
 	if err != nil {
@@ -202,7 +206,27 @@ func (s *chatbotService) SendChat(ctx context.Context, request *dto.SendChatRequ
 		CreatedAt:     now,
 	}
 
+	embeddingRes, err := embedding.GetGemniniEmbedding(os.Getenv("GOOGLE_GEMINI_API_KEY"), request.Chat, "REATRIEVAL_QUERY")
+	if err != nil {
+		return nil, err
+	}
+
+	noteEmbedding, err := noteEmbeddingRepository.SearchSimilarity(
+		ctx,
+		embeddingRes.Embedding.Values,
+	)
+	if err != nil {
+		return nil, err
+	}
+
 	strBuilder := strings.Builder{}
+
+	for i, noteEmbedding := range noteEmbedding {
+		strBuilder.WriteString(fmt.Sprintf("Reference %d\n", i+1))
+		strBuilder.WriteString(noteEmbedding.Document)
+		strBuilder.WriteString("\n\n")
+	}
+
 	strBuilder.WriteString("User next question: ")
 	strBuilder.WriteString(request.Chat)
 	strBuilder.WriteString("\n\n")
@@ -309,11 +333,12 @@ func (s *chatbotService) SendChat(ctx context.Context, request *dto.SendChatRequ
 	}, nil
 }
 
-func NewChatbotService(db *pgxpool.Pool, chatbotSessionRepository repository.IChatSessionRepository, chatbotMessageRepository repository.IChatMessageRepository, chatbotMessageRawRepository repository.IChatMessageRawRepository) IChatbotService {
+func NewChatbotService(db *pgxpool.Pool, chatbotSessionRepository repository.IChatSessionRepository, chatbotMessageRepository repository.IChatMessageRepository, chatbotMessageRawRepository repository.IChatMessageRawRepository, noteEmbeddingRepository repository.INoteEmbeddingRepository) IChatbotService {
 	return &chatbotService{
 		db:                          db,
-		chatbotSessionRepository:    repository.NewChatSessionRepository(db),
-		chatbotMessageRepository:    repository.NewChatMessageRepository(db),
-		chatbotMessageRawRepository: repository.NewChatMessageRawRepository(db),
+		chatbotSessionRepository:    chatbotSessionRepository,
+		chatbotMessageRepository:    chatbotMessageRepository,
+		chatbotMessageRawRepository: chatbotMessageRawRepository,
+		noteEmbeddingRepository:     noteEmbeddingRepository,
 	}
 }

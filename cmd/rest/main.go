@@ -33,7 +33,7 @@ func main() {
 	exampleRepository := repository.NewExampleRepository(db)
 	notebookRepository := repository.NewNotebookRepository(db)
 	noteRepository := repository.NewNoteRepository(db)
-	embeddingRepository := repository.NewNoteEmbeddingRepository(db)
+	noteEmbeddingRepository := repository.NewNoteEmbeddingRepository(db)
 	chatSessionRepository := repository.NewChatSessionRepository(db)
 	chatMessageRepository := repository.NewChatMessageRepository(db)
 	chatMessageRawRepository := repository.NewChatMessageRawRepository(db)
@@ -46,12 +46,12 @@ func main() {
 		watermillLogger,
 	)
 
-	consumerService := service.NewConsumerService(pubSub, os.Getenv("EMBED_NOTE_CONTENT_TOPIC_NAME"), noteRepository, embeddingRepository, notebookRepository, db)
+	consumerService := service.NewConsumerService(pubSub, os.Getenv("EMBED_NOTE_CONTENT_TOPIC_NAME"), noteRepository, noteEmbeddingRepository, notebookRepository, db)
 
 	publisherService := service.NewPublisherService(os.Getenv("EMBED_NOTE_CONTENT_TOPIC_NAME"), pubSub)
-	noteService := service.NewNoteService(noteRepository, embeddingRepository, publisherService, db)
-	notebookService := service.NewNotebookService(notebookRepository, noteRepository, embeddingRepository, publisherService, db)
-	chatbotService := service.NewChatbotService(db, chatSessionRepository, chatMessageRepository, chatMessageRawRepository)
+	noteService := service.NewNoteService(noteRepository, noteEmbeddingRepository, publisherService, db)
+	notebookService := service.NewNotebookService(notebookRepository, noteRepository, noteEmbeddingRepository, publisherService, db)
+	chatbotService := service.NewChatbotService(db, chatSessionRepository, chatMessageRepository, chatMessageRawRepository, noteEmbeddingRepository)
 
 	exampleController := controller.NewExampleController(exampleService)
 	notebookController := controller.NewNotebookController(notebookService)
