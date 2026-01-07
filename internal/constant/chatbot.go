@@ -1,4 +1,4 @@
-package contain
+package constant
 
 const (
 	ChatMessageRoleUser  = "user"

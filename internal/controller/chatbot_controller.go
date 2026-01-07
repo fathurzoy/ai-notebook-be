@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"ai-notetaking-be/internal/dto"
 	"ai-notetaking-be/internal/pkg/serverutils"
 	"ai-notetaking-be/internal/service"
 
@@ -13,6 +14,7 @@ type IChatbotController interface {
 	CreateSession(ctx *fiber.Ctx) error
 	GetAllSessions(ctx *fiber.Ctx) error
 	GetChatHistory(ctx *fiber.Ctx) error
+	SendChat(ctx *fiber.Ctx) error
 }
 
 type chatbotController struct {
@@ -28,6 +30,7 @@ func (c *chatbotController) RegisterRoutes(r fiber.Router) {
 	h.Get("session", c.GetAllSessions)
 	h.Post("create-session", c.CreateSession)
 	h.Get("chat-history", c.GetChatHistory)
+	h.Post("send-chat", c.SendChat)
 }
 
 func (c *chatbotController) CreateSession(ctx *fiber.Ctx) error {
@@ -58,4 +61,24 @@ func (c *chatbotController) GetChatHistory(ctx *fiber.Ctx) error {
 	}
 
 	return ctx.JSON(serverutils.SuccessResponse("Success get chat history", res))
+}
+
+func (c *chatbotController) SendChat(ctx *fiber.Ctx) error {
+	var request dto.SendChatRequest
+
+	if err := ctx.BodyParser(&request); err != nil {
+		return err
+	}
+
+	err := serverutils.ValidateRequest(request)
+	if err != nil {
+		return err
+	}
+
+	res, err := c.service.SendChat(ctx.Context(), &request)
+	if err != nil {
+		return err
+	}
+
+	return ctx.JSON(serverutils.SuccessResponse("Success send chat", res))
 }

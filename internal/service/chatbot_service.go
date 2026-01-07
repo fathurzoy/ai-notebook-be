@@ -1,7 +1,7 @@
 package service
 
 import (
-	"ai-notetaking-be/internal/contain"
+	"ai-notetaking-be/internal/constant"
 	"ai-notetaking-be/internal/dto"
 	"ai-notetaking-be/internal/entity"
 	"ai-notetaking-be/internal/repository"
@@ -17,6 +17,7 @@ type IChatbotService interface {
 	CreateSession(ctx context.Context) (*dto.CreateSessionResponse, error)
 	GetAllSessions(ctx context.Context) ([]*dto.GetAllSessionsResponse, error)
 	GetChatHistory(ctx context.Context, chatSessionId uuid.UUID) ([]*dto.GetChatHistoryResponse, error)
+	SendChat(ctx context.Context, request *dto.SendChatRequest) (*dto.SendChatResponse, error)
 }
 
 type chatbotService struct {
@@ -38,31 +39,31 @@ func (s *chatbotService) CreateSession(ctx context.Context) (*dto.CreateSessionR
 	chatMessage := &entity.ChatMessage{
 		Id:            uuid.New(),
 		Chat:          "Hi, how can I help you ?",
-		Role:          contain.ChatMessageRoleModel,
+		Role:          constant.ChatMessageRoleModel,
 		ChatSessionId: chatSession.Id,
 		CreatedAt:     now,
 	}
 
 	chatMessageRaw := &entity.ChatMessageRaw{
 		Id:            uuid.New(),
-		Chat:          contain.ChatMessageRawInitialUserPromptV1,
-		Role:          contain.ChatMessageRoleUser,
+		Chat:          constant.ChatMessageRawInitialUserPromptV1,
+		Role:          constant.ChatMessageRoleUser,
 		ChatSessionId: chatSession.Id,
 		CreatedAt:     now,
 	}
 
 	chatMessageRawUser := &entity.ChatMessageRaw{
 		Id:            uuid.New(),
-		Chat:          contain.ChatMessageRawInitialUserPromptV1,
-		Role:          contain.ChatMessageRoleUser,
+		Chat:          constant.ChatMessageRawInitialUserPromptV1,
+		Role:          constant.ChatMessageRoleUser,
 		ChatSessionId: chatSession.Id,
 		CreatedAt:     now,
 	}
 
-	chatMessageRawModel := &entity.ChatMessageRaw{
+	chatMessageModelRaw := &entity.ChatMessageRaw{
 		Id:            uuid.New(),
-		Chat:          contain.ChatMessageRawInitialModelPromptV1,
-		Role:          contain.ChatMessageRoleModel,
+		Chat:          constant.ChatMessageRawInitialModelPromptV1,
+		Role:          constant.ChatMessageRoleModel,
 		ChatSessionId: chatSession.Id,
 		CreatedAt:     now.Add(1 * time.Second),
 	}
@@ -97,7 +98,7 @@ func (s *chatbotService) CreateSession(ctx context.Context) (*dto.CreateSessionR
 		return nil, err
 	}
 
-	err = chatMessageRawRepository.Create(ctx, chatMessageRawModel)
+	err = chatMessageRawRepository.Create(ctx, chatMessageModelRaw)
 	if err != nil {
 		return nil, err
 	}
@@ -161,6 +162,122 @@ func (s *chatbotService) GetChatHistory(ctx context.Context, chatSessionId uuid.
 	}
 
 	return response, nil
+}
+
+func (s *chatbotService) SendChat(ctx context.Context, request *dto.SendChatRequest) (*dto.SendChatResponse, error) {
+
+	tx, err := s.db.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback(ctx)
+
+	chatSessionRepository := s.chatbotSessionRepository.UsingTx(ctx, tx)
+	chatMessageRepository := s.chatbotMessageRepository.UsingTx(ctx, tx)
+	chatMessageRawRepository := s.chatbotMessageRawRepository.UsingTx(ctx, tx)
+
+	chatSession, err := chatSessionRepository.GetById(ctx, request.ChatSessionId)
+	if err != nil {
+		return nil, err
+	}
+
+	existingRawChats, err := chatMessageRawRepository.GetByChatSessionId(ctx, request.ChatSessionId)
+	if err != nil {
+		return nil, err
+	}
+	updateSessionTItle := len(existingRawChats) == 2
+
+	now := time.Now()
+
+	// TODO: save user chat ke db
+	chatMessage := &entity.ChatMessage{
+		Id:            uuid.New(),
+		Chat:          request.Chat,
+		Role:          constant.ChatMessageRoleUser,
+		ChatSessionId: request.ChatSessionId,
+		CreatedAt:     now,
+	}
+
+	// TODO: save user raw chat ke db
+	chatMessageRaw := &entity.ChatMessageRaw{
+		Id:            uuid.New(),
+		Chat:          request.Chat,
+		Role:          constant.ChatMessageRoleUser,
+		ChatSessionId: request.ChatSessionId,
+		CreatedAt:     now,
+	}
+
+	// TODO: save dummy model reply ke db
+	chatMessageModel := &entity.ChatMessage{
+		Id:            uuid.New(),
+		Chat:          "This is automated dummy response",
+		Role:          constant.ChatMessageRoleModel,
+		ChatSessionId: request.ChatSessionId,
+		CreatedAt:     now.Add(1 * time.Second),
+	}
+
+	// TODO: save dummy model raw reply ke db
+	chatMessageModelRaw := &entity.ChatMessageRaw{
+		Id:            uuid.New(),
+		Chat:          "This is automated dummy response",
+		Role:          constant.ChatMessageRoleModel,
+		ChatSessionId: request.ChatSessionId,
+		CreatedAt:     now.Add(1 * time.Second),
+	}
+
+	err = chatMessageRepository.Create(ctx, chatMessage)
+	if err != nil {
+		return nil, err
+	}
+
+	err = chatMessageRepository.Create(ctx, chatMessageModel)
+	if err != nil {
+		return nil, err
+	}
+
+	err = chatMessageRawRepository.Create(ctx, chatMessageRaw)
+	if err != nil {
+		return nil, err
+	}
+
+	err = chatMessageRawRepository.Create(ctx, chatMessageModelRaw)
+	if err != nil {
+		return nil, err
+	}
+
+	if updateSessionTItle {
+		chatSession.Title = request.Chat
+		chatSession.UpdatedAt = &now
+
+		err = chatSessionRepository.Update(ctx, chatSession)
+		if err != nil {
+			return nil, err
+		}
+
+		//TODO: create update repo
+
+		err = tx.Commit(ctx)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return &dto.SendChatResponse{
+		ChatSessionId:    chatSession.Id,
+		ChatSessionTitle: chatSession.Title,
+		Sent: &dto.SendChatResponseChat{
+			Id:        chatMessage.Id,
+			Chat:      chatMessage.Chat,
+			Role:      chatMessage.Role,
+			CreatedAt: chatMessage.CreatedAt,
+		},
+		Reply: &dto.SendChatResponseChat{
+			Id:        chatMessageModel.Id,
+			Chat:      chatMessageModel.Chat,
+			Role:      chatMessageModel.Role,
+			CreatedAt: chatMessageModel.CreatedAt,
+		},
+	}, nil
 }
 
 func NewChatbotService(db *pgxpool.Pool, chatbotSessionRepository repository.IChatSessionRepository, chatbotMessageRepository repository.IChatMessageRepository, chatbotMessageRawRepository repository.IChatMessageRawRepository) IChatbotService {
