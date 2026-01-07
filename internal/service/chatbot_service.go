@@ -211,20 +211,53 @@ func (s *chatbotService) SendChat(ctx context.Context, request *dto.SendChatRequ
 		return nil, err
 	}
 
-	noteEmbedding, err := noteEmbeddingRepository.SearchSimilarity(
+	decideUseRAGChatHistories := make([]*chatbot.ChatHistory, 0)
+	for i, rawChat := range existingRawChats {
+		if i == 0 {
+			decideUseRAGChatHistories = append(decideUseRAGChatHistories, &chatbot.ChatHistory{
+				Chat: constant.DecideUseRAGMessageRawInitialUserPromptV1,
+				Role: constant.ChatMessageRoleUser,
+			})
+			continue
+		} else if i == 1 {
+			decideUseRAGChatHistories = append(decideUseRAGChatHistories, &chatbot.ChatHistory{
+				Chat: constant.DecideUseRAGMessageRawInitialModelPromptV1,
+				Role: constant.ChatMessageRoleModel,
+			})
+			continue
+		}
+
+		decideUseRAGChatHistories = append(decideUseRAGChatHistories, &chatbot.ChatHistory{
+			Chat: rawChat.Chat,
+			Role: rawChat.Role,
+		})
+	}
+
+	useRag, err := chatbot.DecideToUseRAG(
 		ctx,
-		embeddingRes.Embedding.Values,
+		os.Getenv("GOOGLE_GEMINI_API_KEY"),
+		decideUseRAGChatHistories,
 	)
 	if err != nil {
 		return nil, err
 	}
 
 	strBuilder := strings.Builder{}
+	if useRag {
+		noteEmbedding, err := noteEmbeddingRepository.SearchSimilarity(
+			ctx,
+			embeddingRes.Embedding.Values,
+		)
+		if err != nil {
+			return nil, err
+		}
 
-	for i, noteEmbedding := range noteEmbedding {
-		strBuilder.WriteString(fmt.Sprintf("Reference %d\n", i+1))
-		strBuilder.WriteString(noteEmbedding.Document)
-		strBuilder.WriteString("\n\n")
+		for i, noteEmbedding := range noteEmbedding {
+			strBuilder.WriteString(fmt.Sprintf("Reference %d\n", i+1))
+			strBuilder.WriteString(noteEmbedding.Document)
+			strBuilder.WriteString("\n\n")
+		}
+
 	}
 
 	strBuilder.WriteString("User next question: ")
