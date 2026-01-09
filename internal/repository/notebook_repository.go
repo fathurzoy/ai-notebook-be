@@ -36,7 +36,7 @@ func (n *notebookRepository) UsingTx(ctx context.Context, tx database.DatabaseQu
 
 func (n *notebookRepository) GetAll(ctx context.Context) ([]*entity.Notebook, error) {
 
-	rows, err := n.db.Query(ctx, `SELECT id, name, parent_id, created_at, updated_at, deleted_at, is_deleted FROM notebook`)
+	rows, err := n.db.Query(ctx, `SELECT id, name, parent_id, created_at, updated_at, deleted_at, is_deleted FROM notebook WHERE is_deleted = $1`, false)
 	if err != nil {
 		return nil, err
 	}
