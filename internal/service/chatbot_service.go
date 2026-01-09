@@ -24,6 +24,7 @@ type IChatbotService interface {
 	GetAllSessions(ctx context.Context) ([]*dto.GetAllSessionsResponse, error)
 	GetChatHistory(ctx context.Context, chatSessionId uuid.UUID) ([]*dto.GetChatHistoryResponse, error)
 	SendChat(ctx context.Context, request *dto.SendChatRequest) (*dto.SendChatResponse, error)
+	DeleteSession(ctx context.Context, chatSessionId *dto.DeleteSessionRequest) error
 }
 
 type chatbotService struct {
@@ -364,6 +365,46 @@ func (s *chatbotService) SendChat(ctx context.Context, request *dto.SendChatRequ
 			CreatedAt: chatMessageModel.CreatedAt,
 		},
 	}, nil
+}
+
+func (s *chatbotService) DeleteSession(ctx context.Context, request *dto.DeleteSessionRequest) error {
+
+	tx, err := s.db.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	chatbotSessionRepository := s.chatbotSessionRepository.UsingTx(ctx, tx)
+	chatbotMessageRepository := s.chatbotMessageRepository.UsingTx(ctx, tx)
+	chatbotMessageRawRepository := s.chatbotMessageRawRepository.UsingTx(ctx, tx)
+
+	_, err = s.chatbotSessionRepository.GetById(ctx, request.ChatSessionId)
+	if err != nil {
+		return err
+	}
+
+	err = chatbotSessionRepository.Delete(ctx, request.ChatSessionId)
+	if err != nil {
+		return err
+	}
+
+	err = chatbotMessageRepository.DeleteByChatSessionId(ctx, request.ChatSessionId)
+	if err != nil {
+		return err
+	}
+
+	err = chatbotMessageRawRepository.DeleteByChatSessionId(ctx, request.ChatSessionId)
+	if err != nil {
+		return err
+	}
+
+	err = tx.Commit(ctx)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func NewChatbotService(db *pgxpool.Pool, chatbotSessionRepository repository.IChatSessionRepository, chatbotMessageRepository repository.IChatMessageRepository, chatbotMessageRawRepository repository.IChatMessageRawRepository, noteEmbeddingRepository repository.INoteEmbeddingRepository) IChatbotService {
