@@ -41,16 +41,19 @@ func NewNotebookService(notebookRepository repository.INotebookRepository, noteR
 }
 
 func (c *notebookService) GetAll(ctx context.Context) ([]*dto.GetAllNotebookResponse, error) {
-
 	notebooks, err := c.notebookRepository.GetAll(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	ids := make([]uuid.UUID, 0)
-	result := make([]*dto.GetAllNotebookResponse, 0)
+	ids := make([]uuid.UUID, 0, len(notebooks))
+	result := make([]*dto.GetAllNotebookResponse, 0, len(notebooks))
+
+	// Map untuk akses cepat O(1)
+	notebookMap := make(map[uuid.UUID]*dto.GetAllNotebookResponse)
+
 	for _, notebook := range notebooks {
-		res := dto.GetAllNotebookResponse{
+		res := &dto.GetAllNotebookResponse{
 			Id:        notebook.Id,
 			Name:      notebook.Name,
 			ParentId:  notebook.ParentId,
@@ -58,7 +61,8 @@ func (c *notebookService) GetAll(ctx context.Context) ([]*dto.GetAllNotebookResp
 			UpdatedAt: notebook.UpdatedAt,
 			Notes:     make([]dto.GetAllNotebookResponseNote, 0),
 		}
-		result = append([]*dto.GetAllNotebookResponse{&res}, result...)
+		result = append(result, res)
+		notebookMap[notebook.Id] = res
 		ids = append(ids, notebook.Id)
 	}
 
@@ -67,17 +71,24 @@ func (c *notebookService) GetAll(ctx context.Context) ([]*dto.GetAllNotebookResp
 		return nil, err
 	}
 
-	for i := 0; i < len(notes); i++ {
-		for j := 0; j < len(result); j++ {
-			if notes[i].NotebookId == result[j].Id {
-				result[j].Notes = append(result[j].Notes, dto.GetAllNotebookResponseNote{
-					Id:        notes[i].Id,
-					Title:     notes[i].Title,
-					Content:   notes[i].Content,
-					CreatedAt: notes[i].CreatedAt,
-					UpdatedAt: *notes[i].UpdatedAt,
-				})
+	// O(n) instead of O(n²)
+	for _, note := range notes {
+		if notebook, exists := notebookMap[note.NotebookId]; exists {
+			// Handle nil UpdatedAt
+			var updatedAt time.Time
+			if note.UpdatedAt != nil {
+				updatedAt = *note.UpdatedAt
+			} else {
+				updatedAt = note.CreatedAt // atau time.Time{} untuk zero value
 			}
+
+			notebook.Notes = append(notebook.Notes, dto.GetAllNotebookResponseNote{
+				Id:        note.Id,
+				Title:     note.Title,
+				Content:   note.Content,
+				CreatedAt: note.CreatedAt,
+				UpdatedAt: updatedAt,
+			})
 		}
 	}
 
